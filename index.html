@@ -410,7 +410,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
 <script>
 // ══ CONFIG ══
 const PINS = { qc: '0123', mgr: '0125' }; // ← เปลี่ยน PIN ได้ที่นี่
-const TAILOR_NAMES = ['ริน','วิกกี้','วรรณ','พลอย','แอน','รส']; // ← เพิ่มชื่อช่างที่นี่
+const TAILOR_NAMES = ['ริน','วิกกี้','รส','แอนนา','พลอย','วรรณ']; // ← เพิ่มชื่อช่างที่นี่
 
 const DEFECT_CATS=[
   {id:'stitch',label:'การตัดเย็บ',ico:'🧵',items:[
@@ -435,7 +435,7 @@ const DEFECT_CATS=[
 const DW={s1:2,s2:2,s6:2,f2:2,z1:2,z2:2,s3:1,s4:1,s5:1,f1:1,f3:1,f4:1,f5:1,f6:1,z3:1,z4:1,l1:1,l2:1,l3:1,l4:1};
 const MG=['A','B','C'];
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwkzwto3kT0e9ySNfvDZZgKA7IcY4oJr0kU0demRSAW7nX46YV1cDKsZL8_PGDNNtw3/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzrf51OsSz-wIMHjMmwQ_SW8zcElc27QDYsWM9Eanpy-pASa7iWBYXzrNXD_SZif_kt/exec';
 
 let records=[];
 try{records=JSON.parse(localStorage.getItem('hunheng_qc3')||'[]');}catch(e){}
@@ -578,16 +578,26 @@ function enterApp(role){
     document.getElementById('app-qc').style.display='block';
     buildDF();
     records.forEach(r=>updateSugg(r.tailor));
-    // ลอง sync จาก Sheet (ถ้าทำได้) แต่ไม่บังคับ
-    loadFromSheet().then(()=>{ records.forEach(r=>updateSugg(r.tailor)); }).catch(()=>{});
+    loadFromSheet().then(()=>{
+      records.forEach(r=>updateSugg(r.tailor));
+      buildDF();
+    }).catch(()=>{});
   } else if(role==='mgr'){
     document.getElementById('app-mgr').style.display='block';
-    renderMgrDash();
-    loadFromSheet().then(()=>renderMgrDash()).catch(()=>{});
+    showSyncStatus('🔄 กำลังโหลดข้อมูล...');
+    loadFromSheet().then(()=>{
+      renderMgrDash();
+    }).catch(()=>{
+      renderMgrDash();
+    });
   } else {
     document.getElementById('app-tailor').style.display='block';
-    renderTailor('today');
-    loadFromSheet().then(()=>renderTailor('today')).catch(()=>{});
+    showSyncStatus('🔄 กำลังโหลดข้อมูล...');
+    loadFromSheet().then(()=>{
+      renderTailor('today');
+    }).catch(()=>{
+      renderTailor('today');
+    });
   }
 }
 function logout(){
