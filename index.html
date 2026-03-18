@@ -410,7 +410,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
 <script>
 // ══ CONFIG ══
 const PINS = { qc: '0123', mgr: '0125' }; // ← เปลี่ยน PIN ได้ที่นี่
-const TAILOR_NAMES = ['ริน','วิกกี้','รส','แอนนา','พลอย','วรรณ']; // ← เพิ่มชื่อช่างที่นี่
+const TAILOR_NAMES = ['รส','ริน','วิกกี้','พลอย','แอนนา','วรรณ']; // ← เพิ่มชื่อช่างที่นี่
 
 const DEFECT_CATS=[
   {id:'stitch',label:'การตัดเย็บ',ico:'🧵',items:[
@@ -435,7 +435,7 @@ const DEFECT_CATS=[
 const DW={s1:2,s2:2,s6:2,f2:2,z1:2,z2:2,s3:1,s4:1,s5:1,f1:1,f3:1,f4:1,f5:1,f6:1,z3:1,z4:1,l1:1,l2:1,l3:1,l4:1};
 const MG=['A','B','C'];
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzrf51OsSz-wIMHjMmwQ_SW8zcElc27QDYsWM9Eanpy-pASa7iWBYXzrNXD_SZif_kt/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbx6jatsZjobB76t4Odzm5bR7sah_R_nLHOiXiu8-NZKD27JVlKTqMB8-F7Fdv_MnvDZ/exec';
 
 let records=[];
 try{records=JSON.parse(localStorage.getItem('hunheng_qc3')||'[]');}catch(e){}
@@ -495,12 +495,19 @@ async function loadFromSheet(){
 
 async function sendToSheet(rec){
   try{
+    // ส่ง date/time เป็น text ล้วน ไม่ให้ Sheet แปลงเป็น Date Object
     const payload = {
-      date:rec.date, time:rec.time, tailor:rec.tailor, prod:rec.prod,
-      lot:rec.lot||'', qty:rec.qty, grade:rec.grade,
-      defectLabels:rec.defectLabels||[], note:rec.note||''
+      date: "'"+rec.date,
+      time: "'"+rec.time,
+      tailor: rec.tailor,
+      prod: rec.prod,
+      lot: rec.lot||'',
+      qty: rec.qty,
+      grade: rec.grade,
+      defectLabels: rec.defectLabels||[],
+      note: rec.note||''
     };
-    const res = await fetch(SHEET_URL, {
+    await fetch(SHEET_URL, {
       method:'POST',
       mode:'no-cors',
       body: JSON.stringify(payload)
