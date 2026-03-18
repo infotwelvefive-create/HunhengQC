@@ -409,7 +409,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
 
 <script>
 // ══ CONFIG ══
-const PINS = { qc: '0123', mgr: '0125' }; // ← เปลี่ยน PIN ได้ที่นี่
+const PINS = {  qc: '0123', mgr: '0125' }; // ← เปลี่ยน PIN ได้ที่นี่
 const TAILOR_NAMES = ['ริน','วิกกี้','วรรณ','แอน','รส','พลอย']; // ← เพิ่มชื่อช่างที่นี่
 
 const DEFECT_CATS=[
@@ -435,7 +435,7 @@ const DEFECT_CATS=[
 const DW={s1:2,s2:2,s6:2,f2:2,z1:2,z2:2,s3:1,s4:1,s5:1,f1:1,f3:1,f4:1,f5:1,f6:1,z3:1,z4:1,l1:1,l2:1,l3:1,l4:1};
 const MG=['A','B','C'];
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbx30KlCI1I1ooLE0ank4QvSLdbYFGoVkCMV9wdi61AajKgb_7f_-CMW4dEyngd_UhrN/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbycKvvSOLsk33jM09hqAnX2c0_HsXA7ZLZ-1tGph9feJtll9cdLncSTpLEbTeQJUSqm/exec';
 const CLOUDINARY_CLOUD = 'dpw6lcmbo';
 const CLOUDINARY_PRESET = 'hunheng_qc';
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
@@ -779,10 +779,16 @@ function submitQC(){
   sendToSheet(rec).then((ok)=>{
     if(ok){
       showSyncStatus('✅ บันทึกลง Google Sheet สำเร็จ!');
+      // โหลดข้อมูลใหม่จาก Sheet เพื่อให้ทุกเครื่องเห็นพร้อมกัน
+      setTimeout(()=>{
+        loadFromSheet().then(()=>{
+          hideSyncStatus();
+        });
+      }, 2000);
     } else {
-      showSyncStatus('💾 บันทึกในเครื่องแล้ว (ไม่มีอินเทอร์เน็ต)');
+      showSyncStatus('💾 บันทึกในเครื่องแล้ว');
+      setTimeout(hideSyncStatus, 2500);
     }
-    setTimeout(hideSyncStatus, 2500);
   });
   ['f-prod','f-lot','f-note'].forEach(id=>document.getElementById(id).value='');
   photos=[];renderPG();qty=1;sync();quickMode='';grade='';showMG(true);MG.forEach(g=>document.getElementById('gb-'+g).className='gbtn');
@@ -794,7 +800,12 @@ function updateSugg(name){
 }
 
 // ══ UTILS ══
-function fmtDate(d){return d.toLocaleDateString('th-TH',{year:'numeric',month:'2-digit',day:'2-digit'});}
+function fmtDate(d){
+  const day=String(d.getDate()).padStart(2,'0');
+  const mon=String(d.getMonth()+1).padStart(2,'0');
+  const yr=d.getFullYear()+543;
+  return day+'/'+mon+'/'+yr;
+}
 function todayStr(){return fmtDate(new Date());}
 function weekStart(){const d=new Date();d.setHours(0,0,0,0);const day=d.getDay();d.setDate(d.getDate()+(day===0?-6:1-day));return d;}
 function monthStart(){const d=new Date();d.setHours(0,0,0,0);d.setDate(1);return d;}
