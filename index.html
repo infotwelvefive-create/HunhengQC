@@ -349,7 +349,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
         <button class="period-btn" id="rb-week" onclick="setRPeriod('week')">สัปดาห์</button>
         <button class="period-btn" id="rb-month" onclick="setRPeriod('month')">เดือน</button>
       </div>
-      <div class="card"><div class="card-title">รายงานส่งผู้บริหาร</div><div class="exp-box" id="exp-box"></div><button class="copy-btn" onclick="copyExp()">คัดลอกรายงาน</button></div>
+      <div class="card"><div class="card-title">รายงานส่ง Honey</div><div class="exp-box" id="exp-box"></div><button class="copy-btn" onclick="copyExp()">คัดลอกรายงาน</button></div>
       <div class="card" style="margin-top:4px"><div class="card-title" style="margin-bottom:8px">ช่างเกรด C สูงสุด</div><div id="c-rank"></div></div>
       <div class="card" style="margin-top:4px"><div class="card-title" style="margin-bottom:8px">จุดบกพร่องที่พบบ่อย</div><div id="defect-rank-qc"></div></div>
     </div>
@@ -410,7 +410,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
 <script>
 // ══ CONFIG ══
 const PINS = { qc: '0123', mgr: '0125' }; // ← เปลี่ยน PIN ได้ที่นี่
-const TAILOR_NAMES = ['ริน','วิกกี้','แอน','รส','วรรณ','พลอย']; // ← เพิ่มชื่อช่างที่นี่
+const TAILOR_NAMES = ['ริน','วิกกี้','วรรณ','แอน','รส','พลอย']; // ← เพิ่มชื่อช่างที่นี่
 
 const DEFECT_CATS=[
   {id:'stitch',label:'การตัดเย็บ',ico:'🧵',items:[
@@ -436,6 +436,9 @@ const DW={s1:2,s2:2,s6:2,f2:2,z1:2,z2:2,s3:1,s4:1,s5:1,f1:1,f3:1,f4:1,f5:1,f6:1,
 const MG=['A','B','C'];
 
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxa-fYCUo9b8a2NwzsRq1vB5uVpqwDZsdmacjMD3ucfsRwASQdlCrgPnpEyjp2Arh-g/exec';
+const CLOUDINARY_CLOUD = 'dpw6lcmbo';
+const CLOUDINARY_PRESET = 'hunheng_qc';
+const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
 
 let records=[];
 try{records=JSON.parse(localStorage.getItem('hunheng_qc3')||'[]');}catch(e){}
@@ -494,8 +497,35 @@ async function loadFromSheet(){
   }
 }
 
+// อัปโหลดรูปไป Cloudinary ก่อน แล้วได้ URL กลับมา
+async function uploadPhotosToCloudinary(photoBase64Array){
+  const urls = [];
+  for(let i = 0; i < photoBase64Array.length; i++){
+    try{
+      const formData = new FormData();
+      formData.append('file', photoBase64Array[i]);
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+      formData.append('folder', 'hunheng_qc');
+      const res = await fetch(CLOUDINARY_URL, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if(data.secure_url) urls.push(data.secure_url);
+    }catch(e){ console.log('cloudinary error', e); }
+  }
+  return urls;
+}
+
 async function sendToSheet(rec){
   try{
+    // อัปโหลดรูปไป Cloudinary ก่อน (ถ้ามี)
+    let photoUrls = rec.photos || [];
+    const hasBase64 = photoUrls.some(p => p.startsWith('data:'));
+    if(hasBase64){
+      showSyncStatus('📤 กำลังอัปโหลดรูปภาพ...');
+      photoUrls = await uploadPhotosToCloudinary(photoUrls);
+    }
     const payload = {
       date: "'"+rec.date,
       time: "'"+rec.time,
@@ -506,7 +536,7 @@ async function sendToSheet(rec){
       grade: rec.grade,
       defectLabels: rec.defectLabels||[],
       note: rec.note||'',
-      photos: rec.photos||[]  // ส่งรูป base64 ไปด้วย
+      photos: photoUrls  // ส่งเป็น Cloudinary URL แทน base64
     };
     await fetch(SHEET_URL, {
       method:'POST',
