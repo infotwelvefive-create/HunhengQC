@@ -349,7 +349,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
         <button class="period-btn" id="rb-week" onclick="setRPeriod('week')">สัปดาห์</button>
         <button class="period-btn" id="rb-month" onclick="setRPeriod('month')">เดือน</button>
       </div>
-      <div class="card"><div class="card-title">รายงานส่ง Honey</div><div class="exp-box" id="exp-box"></div><button class="copy-btn" onclick="copyExp()">คัดลอกรายงาน</button></div>
+      <div class="card"><div class="card-title">รายงานส่งผู้บริหาร</div><div class="exp-box" id="exp-box"></div><button class="copy-btn" onclick="copyExp()">คัดลอกรายงาน</button></div>
       <div class="card" style="margin-top:4px"><div class="card-title" style="margin-bottom:8px">ช่างเกรด C สูงสุด</div><div id="c-rank"></div></div>
       <div class="card" style="margin-top:4px"><div class="card-title" style="margin-bottom:8px">จุดบกพร่องที่พบบ่อย</div><div id="defect-rank-qc"></div></div>
     </div>
@@ -435,7 +435,7 @@ const DEFECT_CATS=[
 const DW={s1:2,s2:2,s6:2,f2:2,z1:2,z2:2,s3:1,s4:1,s5:1,f1:1,f3:1,f4:1,f5:1,f6:1,z3:1,z4:1,l1:1,l2:1,l3:1,l4:1};
 const MG=['A','B','C'];
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxa-fYCUo9b8a2NwzsRq1vB5uVpqwDZsdmacjMD3ucfsRwASQdlCrgPnpEyjp2Arh-g/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbx30KlCI1I1ooLE0ank4QvSLdbYFGoVkCMV9wdi61AajKgb_7f_-CMW4dEyngd_UhrN/exec';
 const CLOUDINARY_CLOUD = 'dpw6lcmbo';
 const CLOUDINARY_PRESET = 'hunheng_qc';
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
@@ -449,21 +449,15 @@ function save(){
   try{ localStorage.setItem('hunheng_qc3', JSON.stringify(records)); }catch(e){}
 }
 
-// JSONP — ข้าม CORS ได้ 100% สำหรับการอ่านข้อมูล
+// JSONP สำหรับอ่านข้อมูล (ข้าม CORS)
 function jsonpGet(url){
   return new Promise((resolve, reject)=>{
     const cb = 'qcb_'+Date.now()+'_'+Math.floor(Math.random()*99999);
     const script = document.createElement('script');
-    const timer = setTimeout(()=>{
-      cleanup(); reject(new Error('timeout'));
-    }, 12000);
+    const timer = setTimeout(()=>{ cleanup(); reject(new Error('timeout')); }, 12000);
     window[cb] = (data)=>{ cleanup(); resolve(data); };
     script.onerror = ()=>{ cleanup(); reject(new Error('script error')); };
-    function cleanup(){
-      clearTimeout(timer);
-      delete window[cb];
-      if(script.parentNode) script.parentNode.removeChild(script);
-    }
+    function cleanup(){ clearTimeout(timer); delete window[cb]; if(script.parentNode) script.parentNode.removeChild(script); }
     script.src = url + '?callback=' + cb + '&t=' + Date.now();
     document.body.appendChild(script);
   });
@@ -477,7 +471,6 @@ async function loadFromSheet(){
       records = data.map(r=>{
         r.id = r.id || (r.date+'_'+r.time+'_'+r.tailor);
         r.defectLabels = r.defectLabels||[];
-        // รูปจาก Drive เป็น URL array แล้ว ไม่ต้องแปลง
         r.photos = Array.isArray(r.photos) ? r.photos : [];
         r.defects = r.defects||{};
         r.qty = parseInt(r.qty)||1;
@@ -486,9 +479,7 @@ async function loadFromSheet(){
       save();
       showSyncStatus('✅ โหลดข้อมูลสำเร็จ — '+records.length+' รายการ');
       setTimeout(hideSyncStatus, 1500);
-    } else {
-      hideSyncStatus();
-    }
+    } else { hideSyncStatus(); }
     return true;
   }catch(e){
     hideSyncStatus();
@@ -497,38 +488,68 @@ async function loadFromSheet(){
   }
 }
 
-// อัปโหลดรูปไป Cloudinary ก่อน แล้วได้ URL กลับมา
+// อัปโหลดรูปไป Cloudinary (รองรับ CORS ได้ 100%)
 async function uploadPhotosToCloudinary(photoBase64Array){
   const urls = [];
   for(let i = 0; i < photoBase64Array.length; i++){
     try{
+      showSyncStatus('📷 กำลังอัปโหลดรูป '+(i+1)+'/'+photoBase64Array.length+'...');
       const formData = new FormData();
       formData.append('file', photoBase64Array[i]);
       formData.append('upload_preset', CLOUDINARY_PRESET);
       formData.append('folder', 'hunheng_qc');
-      const res = await fetch(CLOUDINARY_URL, {
-        method: 'POST',
-        body: formData
-      });
+      const res = await fetch(CLOUDINARY_URL, { method:'POST', body:formData });
       const data = await res.json();
       if(data.secure_url) urls.push(data.secure_url);
+      else console.log('cloudinary response:', data);
     }catch(e){ console.log('cloudinary error', e); }
   }
   return urls;
 }
 
+// ส่งข้อมูลไป Sheet ผ่าน form hidden iframe (ข้าม CORS ได้)
+function sendViaForm(payload){
+  return new Promise((resolve)=>{
+    const iframe = document.createElement('iframe');
+    iframe.name = 'hidden_frame_'+Date.now();
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = SHEET_URL;
+    form.target = iframe.name;
+    form.style.display = 'none';
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify(payload);
+    form.appendChild(input);
+    document.body.appendChild(form);
+
+    setTimeout(()=>{
+      document.body.removeChild(form);
+      document.body.removeChild(iframe);
+      resolve(true);
+    }, 3000);
+
+    form.submit();
+  });
+}
+
 async function sendToSheet(rec){
   try{
-    // อัปโหลดรูปไป Cloudinary ก่อน (ถ้ามี)
-    let photoUrls = rec.photos || [];
-    const hasBase64 = photoUrls.some(p => p.startsWith('data:'));
+    // อัปโหลดรูปไป Cloudinary ก่อน (ถ้ามี base64)
+    let photoUrls = rec.photos||[];
+    const hasBase64 = photoUrls.some(p=>p.startsWith('data:'));
     if(hasBase64){
-      showSyncStatus('📤 กำลังอัปโหลดรูปภาพ...');
       photoUrls = await uploadPhotosToCloudinary(photoUrls);
     }
+
     const payload = {
-      date: "'"+rec.date,
-      time: "'"+rec.time,
+      date: rec.date,
+      time: rec.time,
       tailor: rec.tailor,
       prod: rec.prod,
       lot: rec.lot||'',
@@ -536,14 +557,22 @@ async function sendToSheet(rec){
       grade: rec.grade,
       defectLabels: rec.defectLabels||[],
       note: rec.note||'',
-      photos: photoUrls  // ส่งเป็น Cloudinary URL แทน base64
+      photos: photoUrls
     };
-    await fetch(SHEET_URL, {
-      method:'POST',
-      mode:'no-cors',
-      body: JSON.stringify(payload)
-    });
-    return true;
+
+    // ลองส่งผ่าน fetch ก่อน
+    try{
+      const res = await fetch(SHEET_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'text/plain'},
+        body: JSON.stringify(payload)
+      });
+      return true;
+    }catch(fetchErr){
+      // ถ้า fetch ไม่ได้ ใช้ form แทน
+      await sendViaForm(payload);
+      return true;
+    }
   }catch(e){
     console.log('send error', e);
     return false;
