@@ -349,7 +349,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
         <button class="period-btn" id="rb-week" onclick="setRPeriod('week')">สัปดาห์</button>
         <button class="period-btn" id="rb-month" onclick="setRPeriod('month')">เดือน</button>
       </div>
-      <div class="card"><div class="card-title">รายงานส่งผู้บริหาร</div><div class="exp-box" id="exp-box"></div><button class="copy-btn" onclick="copyExp()">คัดลอกรายงาน</button></div>
+      <div class="card"><div class="card-title">รายงานส่ง Honey</div><div class="exp-box" id="exp-box"></div><button class="copy-btn" onclick="copyExp()">คัดลอกรายงาน</button></div>
       <div class="card" style="margin-top:4px"><div class="card-title" style="margin-bottom:8px">ช่างเกรด C สูงสุด</div><div id="c-rank"></div></div>
       <div class="card" style="margin-top:4px"><div class="card-title" style="margin-bottom:8px">จุดบกพร่องที่พบบ่อย</div><div id="defect-rank-qc"></div></div>
     </div>
@@ -410,7 +410,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
 <script>
 // ══ CONFIG ══
 const PINS = { qc: '0123', mgr: '0125' }; // ← เปลี่ยน PIN ได้ที่นี่
-const TAILOR_NAMES = ['รส','ริน','วิกกี้','พลอย','แอนนา','วรรณ']; // ← เพิ่มชื่อช่างที่นี่
+const TAILOR_NAMES = ['ริน','วิกกี้','แอน','รส','วรรณ','พลอย']; // ← เพิ่มชื่อช่างที่นี่
 
 const DEFECT_CATS=[
   {id:'stitch',label:'การตัดเย็บ',ico:'🧵',items:[
@@ -435,7 +435,7 @@ const DEFECT_CATS=[
 const DW={s1:2,s2:2,s6:2,f2:2,z1:2,z2:2,s3:1,s4:1,s5:1,f1:1,f3:1,f4:1,f5:1,f6:1,z3:1,z4:1,l1:1,l2:1,l3:1,l4:1};
 const MG=['A','B','C'];
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbx6jatsZjobB76t4Odzm5bR7sah_R_nLHOiXiu8-NZKD27JVlKTqMB8-F7Fdv_MnvDZ/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxa-fYCUo9b8a2NwzsRq1vB5uVpqwDZsdmacjMD3ucfsRwASQdlCrgPnpEyjp2Arh-g/exec';
 
 let records=[];
 try{records=JSON.parse(localStorage.getItem('hunheng_qc3')||'[]');}catch(e){}
@@ -468,13 +468,14 @@ function jsonpGet(url){
 
 async function loadFromSheet(){
   try{
-    showSyncStatus('🔄 กำลังโหลดข้อมูลจาก Sheet...');
+    showSyncStatus('🔄 กำลังโหลดข้อมูล...');
     const data = await jsonpGet(SHEET_URL);
     if(Array.isArray(data)){
       records = data.map(r=>{
         r.id = r.id || (r.date+'_'+r.time+'_'+r.tailor);
         r.defectLabels = r.defectLabels||[];
-        r.photos = r.photos||[];
+        // รูปจาก Drive เป็น URL array แล้ว ไม่ต้องแปลง
+        r.photos = Array.isArray(r.photos) ? r.photos : [];
         r.defects = r.defects||{};
         r.qty = parseInt(r.qty)||1;
         return r;
@@ -495,7 +496,6 @@ async function loadFromSheet(){
 
 async function sendToSheet(rec){
   try{
-    // ส่ง date/time เป็น text ล้วน ไม่ให้ Sheet แปลงเป็น Date Object
     const payload = {
       date: "'"+rec.date,
       time: "'"+rec.time,
@@ -505,7 +505,8 @@ async function sendToSheet(rec){
       qty: rec.qty,
       grade: rec.grade,
       defectLabels: rec.defectLabels||[],
-      note: rec.note||''
+      note: rec.note||'',
+      photos: rec.photos||[]  // ส่งรูป base64 ไปด้วย
     };
     await fetch(SHEET_URL, {
       method:'POST',
