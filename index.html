@@ -445,8 +445,15 @@ try{records=JSON.parse(localStorage.getItem('hunheng_qc3')||'[]');}catch(e){}
 let curRole='',curTailor='',pinStr='',qcPeriod='today',rPeriod='today',mgrPeriod='today',mgrRPeriod='today',tailorPeriod='today';
 let grade='',qty=1,photos=[],checkedDefects={},quickMode='';
 
+// เก็บ ID ที่ลบไว้ เพื่อกรองออกเมื่อโหลดจาก Sheet
+let deletedIds = [];
+try{ deletedIds = JSON.parse(localStorage.getItem('hunheng_deleted')||'[]'); }catch(e){}
+
 function save(){
-  try{ localStorage.setItem('hunheng_qc3', JSON.stringify(records)); }catch(e){}
+  try{
+    localStorage.setItem('hunheng_qc3', JSON.stringify(records));
+    localStorage.setItem('hunheng_deleted', JSON.stringify(deletedIds));
+  }catch(e){}
 }
 
 // JSONP สำหรับอ่านข้อมูล (ข้าม CORS)
@@ -475,7 +482,7 @@ async function loadFromSheet(){
         r.defects = r.defects||{};
         r.qty = parseInt(r.qty)||1;
         return r;
-      });
+      }).filter(r => !deletedIds.includes(String(r.id)));
       save();
       showSyncStatus('✅ โหลดข้อมูลสำเร็จ — '+records.length+' รายการ');
       setTimeout(hideSyncStatus, 1500);
@@ -853,6 +860,8 @@ function renderLog(){
 }
 function delRec(id){
   records=records.filter(r=>String(r.id)!==String(id));
+  // เก็บ id ที่ลบไว้ ป้องกันกลับมาตอนโหลด Sheet
+  if(!deletedIds.includes(String(id))) deletedIds.push(String(id));
   save();
   renderLog();
   toast('ลบรายการแล้วค่ะ ✓');
