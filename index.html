@@ -412,7 +412,6 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
 const PINS = {  qc: '0123', mgr: '0125' }; // ← เปลี่ยน PIN ได้ที่นี่
 const TAILOR_NAMES = ['ริน','วิกกี้','วรรณ','แอน','รส','พลอย']; // ← เพิ่มชื่อช่างที่นี่
 
-
 const DEFECT_CATS=[
   {id:'stitch',label:'การตัดเย็บ',ico:'🧵',items:[
     {id:'s1',label:'ตะเข็บหลุด/โล้'},{id:'s2',label:'ด้ายขาดกลางตัด'},
@@ -436,7 +435,7 @@ const DEFECT_CATS=[
 const DW={s1:2,s2:2,s6:2,f2:2,z1:2,z2:2,s3:1,s4:1,s5:1,f1:1,f3:1,f4:1,f5:1,f6:1,z3:1,z4:1,l1:1,l2:1,l3:1,l4:1};
 const MG=['A','B','C'];
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyYfKwFhqLB23JzjmNpqlvuaRIkadJoO5I57N9G3967Ib2TmV6JcTuAL6yrNhq84es/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbx8b68NAmHp7jxUHumSgmCD872H94sYQQvyx6K1_3A4F0P7sM1RmGLo-6tgVUvgCPDR/exec';
 const CLOUDINARY_CLOUD = 'dpw6lcmbo';
 const CLOUDINARY_PRESET = 'hunheng_qc';
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
@@ -822,9 +821,37 @@ function filterRecs(p,tailorName){
   let recs=records;
   if(tailorName)recs=recs.filter(r=>r.tailor===tailorName);
   const today=todayStr();
-  if(p==='today')return recs.filter(r=>r.date===today);
-  if(p==='week'){const ws=weekStart();return recs.filter(r=>{const parts=r.date.split('/');if(parts.length<3)return false;const d=new Date(parseInt(parts[2])-543,parseInt(parts[1])-1,parseInt(parts[0]));return d>=ws;});}
-  if(p==='month'){const ms=monthStart();return recs.filter(r=>{const parts=r.date.split('/');if(parts.length<3)return false;const d=new Date(parseInt(parts[2])-543,parseInt(parts[1])-1,parseInt(parts[0]));return d>=ms;});}
+  // แปลง date ให้เป็น พ.ศ. เสมอ (รองรับทั้ง ค.ศ. และ พ.ศ.)
+  function normalizeDate(dateStr){
+    if(!dateStr) return '';
+    const parts = dateStr.split('/');
+    if(parts.length !== 3) return dateStr;
+    let yr = parseInt(parts[2]);
+    if(yr < 2500) yr = yr + 543; // ค.ศ. → พ.ศ.
+    else if(yr > 2600) yr = yr - 543; // บวก 543 ซ้ำ → ลบออก
+    return parts[0]+'/'+parts[1]+'/'+yr;
+  }
+  if(p==='today') return recs.filter(r=>normalizeDate(r.date)===today);
+  if(p==='week'){
+    const ws=weekStart();
+    return recs.filter(r=>{
+      const nd=normalizeDate(r.date);
+      const parts=nd.split('/');
+      if(parts.length<3)return false;
+      const d=new Date(parseInt(parts[2])-543,parseInt(parts[1])-1,parseInt(parts[0]));
+      return d>=ws;
+    });
+  }
+  if(p==='month'){
+    const ms=monthStart();
+    return recs.filter(r=>{
+      const nd=normalizeDate(r.date);
+      const parts=nd.split('/');
+      if(parts.length<3)return false;
+      const d=new Date(parseInt(parts[2])-543,parseInt(parts[1])-1,parseInt(parts[0]));
+      return d>=ms;
+    });
+  }
   return recs;
 }
 function calcStats(recs){const s={A:0,B:0,BB:0,C:0,total:0};recs.forEach(r=>{s[r.grade]=(s[r.grade]||0)+r.qty;s.total+=r.qty;});return s;}
