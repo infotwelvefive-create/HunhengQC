@@ -477,7 +477,8 @@ async function loadFromSheet(){
     const data = await jsonpGet(SHEET_URL);
     if(Array.isArray(data)){
       records = data.map(r=>{
-        r.id = r.id || (r.date+'_'+r.time+'_'+r.tailor);
+        // สร้าง id จาก date+time+tailor (ใช้จับคู่กับ deletedIds)
+        r.id = r.date+'_'+r.time+'_'+r.tailor;
         r.defectLabels = r.defectLabels||[];
         r.photos = Array.isArray(r.photos) ? r.photos : [];
         r.defects = r.defects||{};
@@ -865,28 +866,23 @@ function deleteFromSheet(id){
     const cb = 'dcb_'+Date.now()+'_'+Math.floor(Math.random()*99999);
     const script = document.createElement('script');
     const timer = setTimeout(()=>{ cleanup(); resolve(false); }, 8000);
-    window[cb] = (data)=>{ cleanup(); resolve(data.status==='ok'); };
+    window[cb] = (data)=>{ cleanup(); resolve(data && data.status==='ok'); };
     script.onerror = ()=>{ cleanup(); resolve(false); };
     function cleanup(){ clearTimeout(timer); delete window[cb]; if(script.parentNode) script.parentNode.removeChild(script); }
-    script.src = SHEET_URL + '?action=delete&id=' + encodeURIComponent(id) + '&callback=' + cb + '&t=' + Date.now();
+    // ส่ง id แบบ date_time_tailor ไปให้ Sheet จับคู่แถว
+    script.src = SHEET_URL + '?action=delete&id=' + encodeURIComponent(String(id)) + '&callback=' + cb + '&t=' + Date.now();
     document.body.appendChild(script);
   });
 }
 
 function delRec(id){
-  // ลบออกจาก local ทันที
   records=records.filter(r=>String(r.id)!==String(id));
   if(!deletedIds.includes(String(id))) deletedIds.push(String(id));
   save();
   renderLog();
   toast('กำลังลบ...');
-  // ลบออกจาก Sheet ด้วย
   deleteFromSheet(id).then(ok=>{
-    if(ok){
-      toast('ลบสำเร็จ ✓ ทุกเครื่องจะไม่เห็นรายการนี้แล้ว');
-    } else {
-      toast('ลบในเครื่องแล้ว (Sheet อาจยังมีอยู่)');
-    }
+    toast(ok ? 'ลบสำเร็จ ✓ ทุกเครื่องจะไม่เห็นรายการนี้' : 'ลบในเครื่องแล้ว');
   });
 }
 function setPeriod(p){qcPeriod=p;['today','week','month'].forEach(x=>document.getElementById('pb-'+x).classList.toggle('on',x===p));renderSum();}
