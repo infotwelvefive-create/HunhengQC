@@ -412,6 +412,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
 const PINS = {  qc: '0123', mgr: '0125' }; // ← เปลี่ยน PIN ได้ที่นี่
 const TAILOR_NAMES = ['ริน','วิกกี้','วรรณ','แอน','รส','พลอย']; // ← เพิ่มชื่อช่างที่นี่
 
+
 const DEFECT_CATS=[
   {id:'stitch',label:'การตัดเย็บ',ico:'🧵',items:[
     {id:'s1',label:'ตะเข็บหลุด/โล้'},{id:'s2',label:'ด้ายขาดกลางตัด'},
@@ -845,10 +846,19 @@ function renderLog(){
         ${r.defectLabels&&r.defectLabels.length?`<div class="defect-tags">${r.defectLabels.map(l=>`<span class="dtag">${l}</span>`).join('')}</div>`:''}
         ${r.photos&&r.photos.length?`<div class="log-photos">${r.photos.map(src=>`<img src="${src}" onclick="openLB('${src}')">`).join('')}</div>`:''}
       </div>
-      <div class="log-right"><div class="log-qty">${r.qty}ชิ้น</div><button class="del-btn" onclick="delRec(${r.id})">✕</button></div>
+      <div class="log-right">
+        <div class="log-qty">${r.qty} ชิ้น</div>
+        <button class="del-btn" onclick="delRec(${r.id})" style="min-width:32px;min-height:32px;font-size:16px;background:#FCEBEB;color:#A32D2D;border-radius:8px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
     </div>`).join('');
 }
-function delRec(id){records=records.filter(r=>r.id!==id);save();renderLog();}
+function delRec(id){
+  if(!confirm('ลบรายการนี้ออกไหมคะ?')) return;
+  records=records.filter(r=>r.id!==id);
+  save();
+  renderLog();
+  toast('ลบรายการแล้วค่ะ');
+}
 function setPeriod(p){qcPeriod=p;['today','week','month'].forEach(x=>document.getElementById('pb-'+x).classList.toggle('on',x===p));renderSum();}
 function setRPeriod(p){rPeriod=p;['today','week','month'].forEach(x=>document.getElementById('rb-'+x).classList.toggle('on',x===p));renderReport();}
 function renderSum(){
