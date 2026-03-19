@@ -412,6 +412,7 @@ body{background:var(--bg);font-family:var(--fn);color:var(--txt);min-height:100v
 const PINS = {  qc: '0123', mgr: '0125' }; // ← เปลี่ยน PIN ได้ที่นี่
 const TAILOR_NAMES = ['ริน','วิกกี้','วรรณ','แอน','รส','พลอย']; // ← เพิ่มชื่อช่างที่นี่
 
+
 const DEFECT_CATS=[
   {id:'stitch',label:'การตัดเย็บ',ico:'🧵',items:[
     {id:'s1',label:'ตะเข็บหลุด/โล้'},{id:'s2',label:'ด้ายขาดกลางตัด'},
@@ -435,7 +436,7 @@ const DEFECT_CATS=[
 const DW={s1:2,s2:2,s6:2,f2:2,z1:2,z2:2,s3:1,s4:1,s5:1,f1:1,f3:1,f4:1,f5:1,f6:1,z3:1,z4:1,l1:1,l2:1,l3:1,l4:1};
 const MG=['A','B','C'];
 
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbycKvvSOLsk33jM09hqAnX2c0_HsXA7ZLZ-1tGph9feJtll9cdLncSTpLEbTeQJUSqm/exec';
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyYfKwFhqLB23JzjmNpqlvuaRIkadJoO5I57N9G3967Ib2TmV6JcTuAL6yrNhq84es/exec';
 const CLOUDINARY_CLOUD = 'dpw6lcmbo';
 const CLOUDINARY_PRESET = 'hunheng_qc';
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
@@ -858,13 +859,35 @@ function renderLog(){
       </div>
     </div>`).join('');
 }
+// ลบออกจาก Google Sheet ผ่าน JSONP
+function deleteFromSheet(id){
+  return new Promise((resolve)=>{
+    const cb = 'dcb_'+Date.now()+'_'+Math.floor(Math.random()*99999);
+    const script = document.createElement('script');
+    const timer = setTimeout(()=>{ cleanup(); resolve(false); }, 8000);
+    window[cb] = (data)=>{ cleanup(); resolve(data.status==='ok'); };
+    script.onerror = ()=>{ cleanup(); resolve(false); };
+    function cleanup(){ clearTimeout(timer); delete window[cb]; if(script.parentNode) script.parentNode.removeChild(script); }
+    script.src = SHEET_URL + '?action=delete&id=' + encodeURIComponent(id) + '&callback=' + cb + '&t=' + Date.now();
+    document.body.appendChild(script);
+  });
+}
+
 function delRec(id){
+  // ลบออกจาก local ทันที
   records=records.filter(r=>String(r.id)!==String(id));
-  // เก็บ id ที่ลบไว้ ป้องกันกลับมาตอนโหลด Sheet
   if(!deletedIds.includes(String(id))) deletedIds.push(String(id));
   save();
   renderLog();
-  toast('ลบรายการแล้วค่ะ ✓');
+  toast('กำลังลบ...');
+  // ลบออกจาก Sheet ด้วย
+  deleteFromSheet(id).then(ok=>{
+    if(ok){
+      toast('ลบสำเร็จ ✓ ทุกเครื่องจะไม่เห็นรายการนี้แล้ว');
+    } else {
+      toast('ลบในเครื่องแล้ว (Sheet อาจยังมีอยู่)');
+    }
+  });
 }
 function setPeriod(p){qcPeriod=p;['today','week','month'].forEach(x=>document.getElementById('pb-'+x).classList.toggle('on',x===p));renderSum();}
 function setRPeriod(p){rPeriod=p;['today','week','month'].forEach(x=>document.getElementById('rb-'+x).classList.toggle('on',x===p));renderReport();}
